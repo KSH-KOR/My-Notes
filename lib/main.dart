@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mynotes/views/homepage_view.dart';
+import 'package:mynotes/views/login_view.dart';
+import 'package:mynotes/views/register_view.dart';
+import 'package:mynotes/views/verifyEmail_iew.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,6 +20,11 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
       ),
       home: const HomePage(),
+      routes: {
+        '/login/':(context) => const LoginView(),
+        '/register/':(context) => const RegisterView(),
+        '/verify-email/':(context) => const VerifyEmailView(),
+      },
     );
   }
 }
