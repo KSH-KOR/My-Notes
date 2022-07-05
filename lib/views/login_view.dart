@@ -1,7 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:mynotes/views/homepage_view.dart';
-import 'package:mynotes/views/register_view.dart';
+import 'dart:developer' as devtools show log;
+
 
 class LoginView extends StatefulWidget {
   const LoginView({Key? key}) : super(key: key);
@@ -70,28 +71,27 @@ class _LoginViewState extends State<LoginView> {
               try {
                 final userCredential = await FirebaseAuth.instance
                     .signInWithEmailAndPassword(email: email, password: password);
-                print(userCredential);
+                devtools.log(userCredential.toString());
                 Navigator.of(context).push(
                     MaterialPageRoute(builder: (context) => const HomePage()));
               } on FirebaseAuthException catch (e) {
                 bool isEmailWrong = true;
                 bool isPwWrong = true;
                 if (e.code == 'user-not-found') {
-                  print("User not found");
+                  devtools.log("User not found");
                 } else if (e.code == 'wrong-password') {
-                  print("Wrong password");
+                  devtools.log("Wrong password");
                   isEmailWrong = false;
                 } else if (e.code == 'invalid-email') {
-                  print("Invalid email");
+                  devtools.log("Invalid email");
                 } else {
-                  print("Something else happened");
-                  print(e.code);
+                  devtools.log('Something else happened: ${e.code}');
                 }
                 if (isEmailWrong) _email.clear();
                 if (isPwWrong) _password.clear();
               } catch (e) {
-                print("unknown error occured");
-                print("error message: $e");
+                devtools.log("unknown error occured");
+                devtools.log("error message: $e");
               }
             },
             child: const Text('login'),
