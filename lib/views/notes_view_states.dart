@@ -2,6 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'dart:developer' as devtools show log;
 
+import 'package:mynotes/constants/routes.dart';
+
 enum MenuAction { logout }
 
 class NotesViewState extends StatefulWidget {
@@ -26,7 +28,7 @@ class _NotesViewStateState extends State<NotesViewState> {
                   if(shouldLogout){
                     await FirebaseAuth.instance.signOut();
                     Navigator.of(context).pushNamedAndRemoveUntil(
-                      '/login/',
+                      loginRoute,
                      (_) => false);
                   }
               }
@@ -34,7 +36,8 @@ class _NotesViewStateState extends State<NotesViewState> {
             itemBuilder: (contest) {
               return const [
                 PopupMenuItem<MenuAction>(
-                    value: MenuAction.logout, child: Text("Log out"))
+                    value: MenuAction.logout, 
+                    child: Text("Log out"))
               ];
             },
           )
