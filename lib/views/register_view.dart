@@ -4,6 +4,8 @@ import 'dart:developer' as devtools show log;
 
 import 'package:mynotes/constants/routes.dart';
 
+import '../utilities/show_error_dialog.dart';
+
 class RegisterView extends StatefulWidget {
   const RegisterView({Key? key}) : super(key: key);
 
@@ -43,7 +45,9 @@ class _RegisterViewState extends State<RegisterView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Register'),),
+      appBar: AppBar(
+        title: const Text('Register'),
+      ),
       body: Column(
         children: [
           TextField(
@@ -71,38 +75,44 @@ class _RegisterViewState extends State<RegisterView> {
               final email = _email.text;
               final password = _password.text;
               try {
-                final userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-                  email: email, 
-                  password: password
+                final userCredential = await FirebaseAuth.instance
+                    .createUserWithEmailAndPassword(
+                        email: email, password: password);
+                final user = FirebaseAuth.instance.currentUser;
+                user?.sendEmailVerification();
+                Navigator.of(context).pushNamed(
+                  verifyEmailRoute
                 );
-                devtools.log(userCredential.toString());
               } on FirebaseAuthException catch (e) {
                 bool isEmailWrong = true;
                 bool isPwWrong = true;
                 if (e.code == 'weak-password') {
-                  devtools.log('Weak password');
+                  await showErrorDialog(context, 'Weak password');
                   isEmailWrong = false;
                 } else if (e.code == 'email-already-in-use') {
-                  devtools.log('Email is already in use');
+                  await showErrorDialog(context, 'Email is already in use');
                 } else if (e.code == 'invalid-email') {
-                  devtools.log('Invalid email entered');
+                  await showErrorDialog(context, 'Invalid email entered');
                   isPwWrong = false;
                 } else {
-                  devtools.log(e.code);
+                  await showErrorDialog(context,
+                      "unknown error occured \nerror message: ${e.code}");
                 }
                 if (isEmailWrong) _email.clear();
                 if (isPwWrong) _password.clear();
+              } catch (e) {
+                await showErrorDialog(
+                    context, "unknown error occured \nerror message: $e");
               }
             },
             child: const Text('register'),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.of(context).pushNamedAndRemoveUntil(
-                loginRoute, 
-                (route) => false);
-            },
-            child: const Text('Already registered? Click here to login!'))
+              onPressed: () {
+                Navigator.of(context)
+                    .pushNamedAndRemoveUntil(loginRoute, (route) => false);
+              },
+              child: const Text('Already registered? Click here to login!'))
         ],
       ),
     );
