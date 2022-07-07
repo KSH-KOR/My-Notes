@@ -5,7 +5,6 @@ import 'dart:developer' as devtools show log;
 
 import '../utilities/show_error_dialog.dart';
 
-
 class LoginView extends StatefulWidget {
   const LoginView({Key? key}) : super(key: key);
 
@@ -45,7 +44,9 @@ class _LoginViewState extends State<LoginView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Login'),),
+      appBar: AppBar(
+        title: const Text('Login'),
+      ),
       body: Column(
         children: [
           TextField(
@@ -72,13 +73,20 @@ class _LoginViewState extends State<LoginView> {
               final password = _password.text;
               try {
                 await FirebaseAuth.instance.signInWithEmailAndPassword(
-                  email: email, 
-                  password: password
-                );
-                Navigator.of(context).pushNamedAndRemoveUntil(
-                  notesRoute,
-                  (route) => false,
-                );
+                    email: email, password: password);
+                final user = FirebaseAuth.instance.currentUser;
+                if (user?.emailVerified ?? false) {
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    notesRoute,
+                    (route) => false,
+                  );
+                } else{
+                  user?.sendEmailVerification();
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    verifyEmailRoute,
+                    (route) => false,
+                  );
+                }
               } on FirebaseAuthException catch (e) {
                 bool isEmailWrong = true;
                 bool isPwWrong = true;
@@ -90,21 +98,22 @@ class _LoginViewState extends State<LoginView> {
                 } else if (e.code == 'invalid-email') {
                   await showErrorDialog(context, "Invalid email");
                 } else {
-                  await showErrorDialog(context, 'Something else happened: ${e.code}');
+                  await showErrorDialog(
+                      context, 'Something else happened: ${e.code}');
                 }
                 if (isEmailWrong) _email.clear();
                 if (isPwWrong) _password.clear();
               } catch (e) {
-                await showErrorDialog(context, "unknown error occured \nerror message: $e");
+                await showErrorDialog(
+                    context, "unknown error occured \nerror message: $e");
               }
             },
             child: const Text('login'),
           ),
           TextButton(
             onPressed: () {
-              Navigator.of(context).pushNamedAndRemoveUntil(
-                registerRoute, 
-                (route) => false);
+              Navigator.of(context)
+                  .pushNamedAndRemoveUntil(registerRoute, (route) => false);
             },
             child: const Text('Not registered yet? Click here to register!'),
           ),
@@ -113,5 +122,3 @@ class _LoginViewState extends State<LoginView> {
     );
   }
 }
-
-
