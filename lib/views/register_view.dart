@@ -1,9 +1,7 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'dart:developer' as devtools show log;
-
 import 'package:mynotes/constants/routes.dart';
-
+import 'package:mynotes/services/auth/auth_exceptions.dart';
+import 'package:mynotes/services/auth/auth_service.dart';
 import '../utilities/show_error_dialog.dart';
 
 class RegisterView extends StatefulWidget {
@@ -75,34 +73,24 @@ class _RegisterViewState extends State<RegisterView> {
               final email = _email.text;
               final password = _password.text;
               try {
-                final userCredential = await FirebaseAuth.instance
-                    .createUserWithEmailAndPassword(
-                        email: email, password: password);
-                final user = FirebaseAuth.instance.currentUser;
-                user?.sendEmailVerification();
+                await AuthService.firebase().createUser(
+                  email: email, 
+                  password: password
+                );
+                await AuthService.firebase().sendEmailVerification();
                 Navigator.of(context).pushNamed(
                   verifyEmailRoute
                 );
-              } on FirebaseAuthException catch (e) {
-                bool isEmailWrong = true;
-                bool isPwWrong = true;
-                if (e.code == 'weak-password') {
-                  await showErrorDialog(context, 'Weak password');
-                  isEmailWrong = false;
-                } else if (e.code == 'email-already-in-use') {
-                  await showErrorDialog(context, 'Email is already in use');
-                } else if (e.code == 'invalid-email') {
-                  await showErrorDialog(context, 'Invalid email entered');
-                  isPwWrong = false;
-                } else {
-                  await showErrorDialog(context,
-                      "unknown error occured \nerror message: ${e.code}");
-                }
-                if (isEmailWrong) _email.clear();
-                if (isPwWrong) _password.clear();
+              } on WeakPasswordAuthException {
+                await showErrorDialog(context, 'Weak password');
+              } on EmailAlreadyInUseAuthException {
+                await showErrorDialog(context, 'Email is already in use');
+              } on InvalidEmailAuthException {
+                await showErrorDialog(context, 'Invalid email entered');
+              } on GenericAuthException {
+                await showErrorDialog(context, "Failed to register");
               } catch (e) {
-                await showErrorDialog(
-                    context, "unknown error occured \nerror message: $e");
+                await showErrorDialog(context, "unknown error occured \nerror message: $e");
               }
             },
             child: const Text('register'),
