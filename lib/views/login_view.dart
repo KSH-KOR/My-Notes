@@ -1,8 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:mynotes/constants/routes.dart';
-import 'package:mynotes/views/homepage_view.dart';
 import 'dart:developer' as devtools show log;
+
+import '../utilities/show_error_dialog.dart';
 
 
 class LoginView extends StatefulWidget {
@@ -82,20 +83,19 @@ class _LoginViewState extends State<LoginView> {
                 bool isEmailWrong = true;
                 bool isPwWrong = true;
                 if (e.code == 'user-not-found') {
-                  devtools.log("User not found");
+                  await showErrorDialog(context, "User not found");
                 } else if (e.code == 'wrong-password') {
-                  devtools.log("Wrong password");
+                  await showErrorDialog(context, "Wrong password");
                   isEmailWrong = false;
                 } else if (e.code == 'invalid-email') {
-                  devtools.log("Invalid email");
+                  await showErrorDialog(context, "Invalid email");
                 } else {
-                  devtools.log('Something else happened: ${e.code}');
+                  await showErrorDialog(context, 'Something else happened: ${e.code}');
                 }
                 if (isEmailWrong) _email.clear();
                 if (isPwWrong) _password.clear();
               } catch (e) {
-                devtools.log("unknown error occured");
-                devtools.log("error message: $e");
+                await showErrorDialog(context, "unknown error occured \nerror message: $e");
               }
             },
             child: const Text('login'),
@@ -113,3 +113,5 @@ class _LoginViewState extends State<LoginView> {
     );
   }
 }
+
+
