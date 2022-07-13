@@ -1,13 +1,16 @@
+
 // work with sqlite database
 // create, read, update, delete, find users and notes
 
 // import dependencies
-import 'dart:html';
+import 'dart:async' show StreamController;
 
 import 'package:flutter/cupertino.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:path/path.dart' as path show join;
 import 'package:path_provider/path_provider.dart' as path_provider;
+
+import 'crud_exception.dart';
 
 // ## we need to construct our database path
 // grab and hold up current database path
@@ -16,27 +19,34 @@ import 'package:path_provider/path_provider.dart' as path_provider;
 
 // ## we need database users
 // create databaseuser class inside notes_service.dart
-class DatabaseAlreadyOpenException implements Exception {}
 
-class UnableToGetDocumentsDirectory implements Exception {}
-
-class DatabaseIsNotOpen implements Exception {}
-
-class CouldNotDeleteUser implements Exception {}
-
-class UserAlreadyExist implements Exception {}
-
-class CouldNotFindUser implements Exception {}
-
-class CouldNotDeleteNote implements Exception {}
-
-class CouldNotFindNote implements Exception{}
-
-class CouldNotUpdateNote implements Exception {}
-
+// ## why stream?
+// if note service directly talks to a database 
+// == if note service doesnt have a ability to cache the note 
+// => as soon as it got a command, 
+// it doesnt know what to do 
+// but it goes to the database and conduct the command
+// => not good idea which is accessing the database everytime (for example, read entire things to just delete one row)
+// => so it needs to be cached inside the application before the service go and hit the database
+// 1. have a local list of notes <- caching
+// 2. the local list is manipulated by user
+// 3. if things are changed, UI automatically fetch or update the database
 
 class NotesService {
   sqflite.Database? _db; // from sqflite dependency
+
+  //caching data -> reactive program
+  //we need the stream and stream controller to cache data
+  //stream controller is a mananger of stream for your interface
+  List<DatabaseNote> _notes = []; //local list of fethced notes
+  final _notesStreamController = 
+    StreamController<List<DatabaseNote>>.broadcast(); /*<List<DatabaseNote>> is data type that the stream contains*/
+
+  Future<void> _cacheNotes() async {
+    final allNotes = await getAllNotes();
+    _notes = allNotes.toList();
+    _notesStreamController.add(_notes);
+  }
 
   sqflite.Database _getDatabaseOrThrow() {
     final db = _db;
@@ -79,6 +89,7 @@ class NotesService {
       //to create note table when the database doesn't exist
       await db.execute(createNoteTable);
 
+      await _cacheNotes();
       //question: how flutter application create database table and read it?
 
     } on path_provider.MissingPlatformDirectoryException {
@@ -137,6 +148,18 @@ class NotesService {
     return DatabaseUser.fromRow(results.first);
   }
 
+  Future<DatabaseUser> getOrCreateUser({required String email,}) async {
+    late final DatabaseUser user;
+    try{ 
+      user = await getUser(email: email);
+    } on CouldNotFindUser{
+      user = await createUser(email: email);
+    } catch(_){
+      rethrow; // in case there is unexpected error, then throw it to the call site (break point)
+    }
+    return user;
+  }
+
   Future<DatabaseNote> createNote({
     required DatabaseUser owner,
   }) async {
@@ -159,6 +182,9 @@ class NotesService {
     final newNote = DatabaseNote(
         id: newNoteId, userId: owner.id, text: text, isSyncedWithCloud: true);
 
+    _notes.add(newNote);
+    _notesStreamController.add(_notes);
+
     return newNote;
   }
 
@@ -172,12 +198,16 @@ class NotesService {
       whereArgs: [id],
     );
     if(deletedCount == 0) throw CouldNotDeleteNote();
-
+    final countBeforeDeleting = _notes.length;
+    _notes.removeWhere((note) => note.id == id);
+    if(countBeforeDeleting != _notes.length) _notesStreamController.add(_notes);
   }
 
   Future<int> deleteAllNotes() async {
     final db = _getDatabaseOrThrow();
     final deletedCount = await db.delete(noteTable);
+    _notes = [];
+    _notesStreamController.add(_notes);
     return deletedCount;
   }
 
@@ -190,8 +220,18 @@ class NotesService {
       where: 'id = ?',
       whereArgs: [id],
     );
-    if(notes.isEmpty) throw CouldNotFindNote();
-    return DatabaseNote.fromRow(notes.first);
+    if(notes.isEmpty){
+      throw CouldNotFindNote();
+    } else{
+      // creating an instance of databasenote updates local cache as well
+      final foundNote =  DatabaseNote.fromRow(notes.first);  
+      // remove old note with the same id and add the new one and then update stream
+      _notes.removeWhere((note) => note.id == id);
+      _notes.add(foundNote);
+      _notesStreamController.add(_notes);
+      return foundNote;
+    }
+    
   }
 
   Future<Iterable<DatabaseNote>> getAllNotes() async {
@@ -214,13 +254,19 @@ class NotesService {
         isSyncedWithCloudColumn: 0,
       },
     );
-    if (updatedCount == 0) throw CouldNotUpdateNote();
-    return await getNote(id: note.id);
+    if (updatedCount == 0) {
+      throw CouldNotUpdateNote();
+    } else{
+      final updatedNote = await getNote(id: note.id);
+      _notes.removeWhere((elementNote) => elementNote.id == updatedNote.id);
+      _notes.add(updatedNote);
+      _notesStreamController.add(_notes);
+      return updatedNote;
+    }
+    
   }
 
 }
-
-
 
 @immutable
 class DatabaseUser {
