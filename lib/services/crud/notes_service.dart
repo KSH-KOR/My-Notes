@@ -32,7 +32,12 @@ import 'crud_exception.dart';
 // 2. the local list is manipulated by user
 // 3. if things are changed, UI automatically fetch or update the database
 
-class NotesService {
+class NotesService { /*NotesService class should be singleton */
+
+  NotesService._privateConstructor();
+  static final NotesService _instance = NotesService._privateConstructor();
+  factory NotesService() => _instance;
+
   sqflite.Database? _db; // from sqflite dependency
 
   //caching data -> reactive program
@@ -41,6 +46,10 @@ class NotesService {
   List<DatabaseNote> _notes = []; //local list of fethced notes
   final _notesStreamController = 
     StreamController<List<DatabaseNote>>.broadcast(); /*<List<DatabaseNote>> is data type that the stream contains*/
+
+  //getter for getting all the notes
+  // streamController _notesStreamController contains _notes
+  Stream<List<DatabaseNote>> get allNotes => _notesStreamController.stream; 
 
   Future<void> _cacheNotes() async {
     final allNotes = await getAllNotes();
@@ -66,7 +75,14 @@ class NotesService {
       _db = null;
     }
   }
-
+  // ensure db is open by calling open() function
+  Future<void> _ensureDbIsOpen() async{
+    try{
+      await open();
+    } on DatabaseAlreadyOpenException{
+      //empty
+    }
+  }
   //we need an async function that open database
   Future<void> open() async {
     //open and hold up the database
@@ -100,6 +116,7 @@ class NotesService {
   Future<void> deleteUser({
     required String email,
   }) async {
+    await _ensureDbIsOpen();
     final db = _getDatabaseOrThrow();
     final deletedCount = await db.delete(
       userTable,
@@ -112,6 +129,7 @@ class NotesService {
   Future<DatabaseUser> createUser({
     required String email,
   }) async {
+    await _ensureDbIsOpen();
     final db = _getDatabaseOrThrow();
     final results = await db.query(
       //look for a given email on the email column in the user table
@@ -136,6 +154,7 @@ class NotesService {
   Future<DatabaseUser> getUser({
     required String email,
   }) async {
+    await _ensureDbIsOpen();
     final db = _getDatabaseOrThrow();
     final results = await db.query(
       //look for a given email on the email column in the user table
@@ -167,6 +186,7 @@ class NotesService {
     // So we want to make sure if that ownder is really a user in database
     // for example, you can hack the note by creating databaseuser manually when you know a email is used in database.
     // make sure ownder exists in the database with the correct id
+    await _ensureDbIsOpen();
     final db = _getDatabaseOrThrow();
     final dbUser = await getUser(email: owner.email);
     if (dbUser != owner) throw CouldNotFindUser();
@@ -189,6 +209,7 @@ class NotesService {
   }
 
   Future<void> deleteNote({required int id}) async {
+    await _ensureDbIsOpen();
     final db = _getDatabaseOrThrow();
 
     // delete note
@@ -204,6 +225,7 @@ class NotesService {
   }
 
   Future<int> deleteAllNotes() async {
+    await _ensureDbIsOpen();
     final db = _getDatabaseOrThrow();
     final deletedCount = await db.delete(noteTable);
     _notes = [];
@@ -212,6 +234,7 @@ class NotesService {
   }
 
   Future<DatabaseNote> getNote({required int id}) async {
+    await _ensureDbIsOpen();
     final db = _getDatabaseOrThrow();
     final notes = await db.query(
       //look for a given email on the email column in the note table
@@ -235,6 +258,7 @@ class NotesService {
   }
 
   Future<Iterable<DatabaseNote>> getAllNotes() async {
+    await _ensureDbIsOpen();
     final db = _getDatabaseOrThrow();
     final notes = await db.query(noteTable);
     return notes.map((noteRow) => DatabaseNote.fromRow(noteRow));
@@ -245,6 +269,7 @@ class NotesService {
     required DatabaseNote note,
     required String text,
   }) async {
+    await _ensureDbIsOpen();
     final db = _getDatabaseOrThrow();
     await getNote(id: note.id); //check if the passed note exist in the noteTable of the database
     final updatedCount = await db.update(
@@ -343,7 +368,7 @@ const createUserTable = '''
   );
 ''';
 const createNoteTable = '''
-CREATE TABLE IF NOT EXIST "note" (
+CREATE TABLE IF NOT EXISTS "note" (
   "id"	INTEGER NOT NULL,
   "user_id"	INTEGER NOT NULL,
   "text"	TEXT,
