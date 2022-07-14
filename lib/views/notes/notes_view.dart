@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:mynotes/enums/menu_action.dart';
 import 'package:mynotes/services/crud/notes_service.dart';
-import '../services/auth/auth_service.dart';
+import '../../services/auth/auth_service.dart';
 
 import 'package:mynotes/constants/routes.dart';
 
-enum MenuAction { logout }
 
 class NotesViewState extends StatefulWidget {
   const NotesViewState({Key? key}) : super(key: key);
@@ -15,6 +15,7 @@ class NotesViewState extends StatefulWidget {
 
 class _NotesViewStateState extends State<NotesViewState> {
   late final NotesService _notesService;
+  late final DatabaseUser owner;
   String get userEmail => AuthService.firebase()
       .currentUser!
       .email!; //we can assume every user has email at this point2
@@ -35,51 +36,63 @@ class _NotesViewStateState extends State<NotesViewState> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Main UI"),
-        actions: [
-          PopupMenuButton<MenuAction>(
-            onSelected: (value) async {
-              switch (value) {
-                case MenuAction.logout:
-                  final shouldLogout = await showLogOutDialog(context);
-                  if (shouldLogout) {
-                    await AuthService.firebase().logOut();
-                    Navigator.of(context)
-                        .pushNamedAndRemoveUntil(loginRoute, (_) => false);
-                  }
-              }
-            },
-            itemBuilder: (contest) {
-              return const [
-                PopupMenuItem<MenuAction>(
-                    value: MenuAction.logout, child: Text("Log out"))
-              ];
-            },
-          )
-        ],
-      ),
+        appBar: AppBar(
+          title: const Text("Your notes"),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () {
+                Navigator.of(context)
+                          .pushNamed(newNoteRoute);
+              },
+            ), 
+            PopupMenuButton<MenuAction>(
+              onSelected: (value) async {
+                switch (value) {
+                  case MenuAction.logout:
+                    final shouldLogout = await showLogOutDialog(context);
+                    if (shouldLogout) {
+                      await AuthService.firebase().logOut();
+                      Navigator.of(context)
+                          .pushNamedAndRemoveUntil(loginRoute, (_) => false);
+                    }
+                    break;
+                }
+              },
+              itemBuilder: (contest) {
+                return const [
+                  PopupMenuItem<MenuAction>(
+                      value: MenuAction.logout, child: Text("Log out"))
+                ];
+              },
+            ), 
+          ],
+        ),
         body: FutureBuilder(
           future: _notesService.getOrCreateUser(email: userEmail),
-          builder: (BuildContext context, AsyncSnapshot<DatabaseUser> snapshot) {
-            switch(snapshot.connectionState){
+          builder:
+              (BuildContext context, AsyncSnapshot<DatabaseUser> snapshot) {
+            switch (snapshot.connectionState) {
               case ConnectionState.done:
                 return StreamBuilder(
                   stream: _notesService.allNotes,
-                  builder: (BuildContext context, AsyncSnapshot<List<DatabaseNote>> snapshot) {  
-                    switch(snapshot.connectionState){
+                  builder: (BuildContext context,
+                      AsyncSnapshot<List<DatabaseNote>> snapshot) {
+                    switch (snapshot.connectionState) {
                       case ConnectionState.waiting:
                         return const Text('waiting for all notes...');
                       default:
                         return const CircularProgressIndicator();
                     }
-                  },);
+                  },
+                );
               default:
                 return const CircularProgressIndicator();
             }
           },
-        )
-    );
+        ),
+        
+      );
   }
 }
 

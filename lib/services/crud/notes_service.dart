@@ -34,6 +34,7 @@ import 'crud_exception.dart';
 
 class NotesService { /*NotesService class should be singleton */
 
+  // hacky way to create a singleton
   NotesService._privateConstructor();
   static final NotesService _instance = NotesService._privateConstructor();
   factory NotesService() => _instance;
@@ -105,7 +106,7 @@ class NotesService { /*NotesService class should be singleton */
       //to create note table when the database doesn't exist
       await db.execute(createNoteTable);
 
-      await _cacheNotes();
+      // await _cacheNotes();
       //question: how flutter application create database table and read it?
 
     } on path_provider.MissingPlatformDirectoryException {
