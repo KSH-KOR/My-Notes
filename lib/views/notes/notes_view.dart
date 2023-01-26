@@ -79,7 +79,8 @@ class _NotesViewStateState extends State<NotesViewState> {
                   builder: (BuildContext context,
                       AsyncSnapshot<List<DatabaseNote>> snapshot) {
                     switch (snapshot.connectionState) {
-                      case ConnectionState.waiting:
+                      case ConnectionState.waiting: // no break in this case: fall through logic
+                      case ConnectionState.active:
                         return const Text('waiting for all notes...');
                       default:
                         return const CircularProgressIndicator();
